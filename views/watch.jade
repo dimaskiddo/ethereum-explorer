@@ -51,13 +51,13 @@ block contents
         },
         onAdd: function() {
           if( !web3.isAddress(this.address) ) {
-            alert('올바른 주소를 입력하세요.')
+            alert('Address is not valid.')
             return false;
           }
 
           if( this.watchs.find(w => w.address.toLowerCase() === this.address.toLowerCase()) ) {
-            console.log('aready exist');
-            alert('이미 등록되어 있습니다.');
+            console.log('Aready exist');
+            alert('Adress already watched.');
             return false;
           }
 
@@ -116,9 +116,9 @@ block contents
 
     web3.eth.filter("latest", function(error, result){
       if (!error) {
-        console.log('block created!', result);
+        console.log('Block created ', result);
         app.watchs.forEach(w => getBalance(w.address).then(r => w.balance = web3.fromWei(r, 'ether') + ' ETH'));
-        //filter(result);
+        //- filter(result);
       }
     });
 
