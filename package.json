@@ -1,0 +1,27 @@
+{
+  "name": "ethereum-explorer",
+  "version": "1.0.0",
+  "description": "Ethereum Explorer",
+  "main": "./bin/www",
+  "scripts": {
+    "start": "node ./bin/www",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dimaskiddo/ethereum-explorer.git"
+  },
+  "keywords": [
+    "Ethereum",
+    "Explorer",
+    "Ethereum Explorer"
+  ],
+  "author": "",
+  "dependencies": {
+    "debug": "^4.1.1",
+    "express": "^4.17.1",
+    "jade": "^1.11.0",
+    "lodash": "^4.17.15",
+    "morgan": "^1.9.1"
+  }
+}

@@ -1,0 +1,256 @@
+extends layout/default_layout
+
+block contents
+  //- h1= title
+
+  div#app
+
+    table.table._table-striped.table-bordered._table-dark.w-100
+      thead.thead-light
+        tr
+          th(width="14%") Current Block
+          th(width="14%") API Version
+          th(width="14%") Client/Node Version
+          th(width="14%") Network Protocol  Version
+          th(width="*") Current Gas Price
+          th(width="14%") Hashrate
+          th(width="14%") Number of Peers
+      tr
+        td
+          a(v-bind:href="'/block/' + blockNumber") {{ blockNumber }}
+        td {{ api }}
+        td {{ node }}
+        td {{ network }}
+        td {{ gasPrice }}
+        td {{ hashrate }}
+        td {{ peerCount }}
+
+    //- h4 Latest Block: 
+      a(v-bind:href="'/block/' + blockNumber") {{ blockNumber }}
+
+    //- ========================
+    //- Recent Blocks
+    //- ========================
+    h1 
+      i.fa.fa-cubes
+      span.ml-1 Recent Blocks
+
+    table.table.table-striped._table-bordered._table-dark.w-100
+      thead._thead-light
+        tr
+          th Block #
+          th # of Txs
+          th Size
+          th Gas Limit
+          th Gas Used
+          th Timestamp
+      tbody
+        tr(v-if="blocks.length === 0")
+          td(colspan="6") 
+             div(style="text-align:center")
+              i.fas.fa-2x.fa-spinner.fa-pulse 
+        tr(v-for="block in blocks", v-if="blocks.length > 0")
+          td       
+            a(v-bind:href="'/block/' + block.number.toString(10)") {{ block.number.toString(10) }}
+          td {{ block.transactions.length }}
+          td {{ block.size }} bytes
+          td {{ block.gasLimit }} 
+          td {{ block.gasUsed }} 
+          td {{ new Date(block.timestamp * 1000).toGMTString() }}
+
+    //- ========================
+    //- Recent Transactions
+    //- ========================
+    h1 
+      i.fas.fa-exchange-alt
+      span.ml-1 Recent Transactions
+
+    table.table.table-striped._table-bordered._table-dark.w-100
+      thead._thead-light
+        tr
+          th TxHash
+          th Block
+          th Value
+          th From 
+          th To
+          th Gas Used
+          th Gas Price
+          th Tx Fee
+      tbody
+        tr(v-if="txs.length === 0")
+          td(colspan="8") 
+             div(style="text-align:center")
+              i.fas.fa-2x.fa-spinner.fa-pulse 
+        tr(v-for="tx in txs", v-if="txs.length > 0")
+          td       
+            a.d-inline-block.text-truncate(v-bind:href="'/tx/' + tx.hash", style="max-width:200px") {{ tx.hash }}
+          td 
+            a(v-bind:href="'/block/' + tx.blockNumber.toString(10)") {{ tx.blockNumber.toString(10) }}
+          td {{ web3.fromWei(tx.value, 'ether').toString(10) + ' ETH' }}
+          td
+            a.d-inline-block.text-truncate(v-bind:href="'/address/' + tx.from", style="max-width:150px") {{ tx.from }}
+          td 
+            span(v-if="tx.to === '0x0'") {{ tx.to }}
+            a.d-inline-block.text-truncate(v-if="tx.to !== '0x0'", v-bind:href="'/address/' + tx.to", style="max-width:150px") {{ tx.to }}
+          td {{ tx.gas.toString(10) }}
+          td {{ web3.fromWei(tx.gasPrice, 'ether').toString(10) + ' ETH' }}
+          td {{ web3.fromWei((tx.gas * tx.gasPrice), 'ether').toString(10) + ' ETH' }}
+
+  script.
+
+    var app = new Vue({
+      el: '#app',
+      data: { 
+        api: null,
+        node: null,
+        network: null,
+        gasPrice: null,
+        hashrate: null,
+        peerCount: null,
+        blockNumber: null,
+        blocks: [],
+        txs:[]
+      },
+      created: function() {
+        init.bind(this)();
+      }
+    });
+
+    function getNetwork() {
+      return new Promise((res, rej) => {
+        web3.version.getNetwork((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getNode() {
+      return new Promise((res, rej) => {
+        web3.version.getNode((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getPeerCount() {
+      return new Promise((res, rej) => {
+        web3.net.getPeerCount((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getHashrate() {
+      return new Promise((res, rej) => {
+        web3.eth.getHashrate((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getBlockNumber() {
+      return new Promise((res, rej) => {
+        web3.eth.getBlockNumber((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getGasPrice(hashStringOrBlockNumber) {
+      return new Promise((res, rej) => {
+        web3.eth.getGasPrice((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getBlock(hashStringOrBlockNumber, returnTransactionObjects) {
+      return new Promise((res, rej) => {
+        web3.eth.getBlock(hashStringOrBlockNumber, returnTransactionObjects, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getTransaction(hash) {
+      return new Promise((res, rej) => {
+        web3.eth.getTransaction(hash, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    async function getRecentBlocks(currentBlockNumber, maxCnt, returnTransactionObjects) {
+      var blocks = [];
+      for (var i=0, s=(maxCnt || 10); i < s && currentBlockNumber - i >= 0; i++) {
+        const block = await getBlock(currentBlockNumber - i, returnTransactionObjects)
+        blocks.push(block);
+      }
+      return blocks;
+    }
+    
+    async function getRecentTxs(txhashs, maxCnt) {
+      var txs = [];
+      for (var i=0, l=txhashs.length, s=(maxCnt || 20)-1; i < s && i < l; i++) {
+        var hash = txhashs[i];
+        if( hash && hash.length )
+          txs.push(await getTransaction(hash));
+      }
+      return txs;
+    }
+
+    // init Function
+    async function init() {
+      var self = app || this;
+
+      //- getNode().then(r=>console.log(r));
+      self.api = web3.version.api;
+      getNode().then(r =>  self.node = r);
+      getNetwork().then(r =>  self.network = r);
+      getHashrate().then(r =>  self.hashrate = r);
+      getPeerCount().then(r =>  self.peerCount = r);
+      //- getGasPrice().then(r =>  self.gasPrice = r.toString(10) + ' (' +  web3.fromWei(r, 'ether').toString(10) + ' ETH)');
+      getGasPrice().then(r =>  self.gasPrice = r.toString(10) + ' (' +  web3.fromWei(r, 'gwei').toString(10) + ' Gwei)');
+
+      var blockNumber = await getBlockNumber();
+      self.blockNumber = blockNumber;
+
+      self.blocks = await getRecentBlocks(blockNumber, 10, true);
+      //- console.log(self.blocks);
+
+      //- getTransactionFromBlock(hashStringOrNumber, indexNumber [, callback])
+      //- var transactions = app.blocks.map(e=>e?e.transactions:null).join(',').split(",");
+      //- self.txs = await getRecentTxs(transactions);
+
+      var transactions = [];
+      self.blocks.forEach(function(block) {
+        //- console.log(e.transactions);
+        if( block && block.transactions && block.transactions.length )
+          transactions = transactions.concat(block.transactions);
+      });
+      self.txs = transactions;
+
+      web3.eth.filter("latest", function(error, result){
+        if (!error) {
+          //- console.log(result);
+          getBlock(result, true).then(block => {
+            //- console.log(block);
+            app.blocks.unshift(block);
+            app.blocks.pop();
+            //- getRecentTxs(block.transactions).then(r => app.$data.txs.unshift(r) );
+
+            if( block.transactions.length ) {
+              app.txs = block.transactions.concat(app.txs);
+            }
+          });
+        }
+      });
+    }

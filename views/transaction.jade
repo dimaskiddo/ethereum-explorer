@@ -1,0 +1,201 @@
+extends layout/default_layout
+
+block contents
+  h1=title
+    span.text-muted.ml-2.sub #{hash}
+
+  //- hr.my-4
+  div#app(v-cloak)
+    div.text-right
+      button.btn.btn-danger.btn-sm.mr-2(v-if="isContractCreation") Contract Creation
+
+      button.btn.btn-primary.btn-sm 
+        span(v-if="confirmations===null")
+          i.fas.fa-spinner.fa-pulse
+          span.ml-1 Confirmations
+        span {{ confirmations }}
+
+    //- ========================
+    //- Transaction
+    //- ========================
+    table.table.table-striped.mt-2.w-100
+      tr
+        th.w-25 TxHash 
+        td {{ tx.hash }}
+      tr
+        th Nonce 
+        td {{ tx.nonce }}
+      tr
+        th STxReceipt Status 
+        td {{ (tx.transactionIndex===undefined?'Pending':'Success') }}
+      tr
+        th Block Height 
+        td 
+          span(v-if="tx.blockNumber===undefined") pending
+          a(v-if="tx.blockNumber!==undefined", v-bind:href="'/block/' + tx.blockNumber") {{ tx.blockNumber }}
+      tr
+        th Block Hash 
+        td {{ (tx.blockHash || 'pending') }}
+      tr
+        th Transaction Index
+        td {{ (tx.transactionIndex===undefined?'pending':tx.transactionIndex) }}
+      //- tr
+        th TimeStamp 
+        td {{ tx.timestamp }}
+      tr
+        th From 
+        td
+          a(v-bind:href="'/address/' + tx.from") {{ tx.from }}
+      tr
+        th To 
+        td 
+          span(v-if="tx.to === '0x0'") {{ tx.to }}
+          a(v-if="tx.to !== '0x0'", v-bind:href="'/address/' + tx.to") {{ tx.to }}
+      tr
+        th Value
+        td {{ tx.value }} {{ tx.value_eth }}
+      tr
+        th Gas Limit 
+        td {{ tx.gas }}
+      tr
+        th Gas Price 
+        td {{ tx.gasPrice }} {{ tx.gasPrice_gwei }}
+      tr
+        th Transaction Price 
+        td {{ tx.transactionPrice }}
+      tr
+        th Input Data 
+        td
+          textarea(disabled, readonly) {{ tx.input }}
+
+    //- ========================
+    //- Transaction Receipt
+    //- ========================
+    h2 Receipt
+    table.table.table-striped.w-100
+      tr
+        th.w-25 Contract Address 
+        td {{ txReceipt.contractAddress }}
+      tr
+        th Cumulative Gas Used 
+        td {{ txReceipt.cumulativeGasUsed }}
+      tr
+        th Gas Used 
+        td {{ txReceipt.gasUsed }}
+      tr
+        th Status 
+        td {{ txReceipt.status }}
+      tr
+        th Logs Bloom 
+        td 
+          textarea(disabled readonly) {{ txReceipt.logsBloom }}
+
+    //- ========================
+    //- Transaction Receipt Logs
+    //- ========================
+    h2 Logs
+    table.table.table-striped.w-100
+      tr
+        th  logIndex
+        //- th address 
+          th blockNumber
+          th blockHash
+        th data
+        th removed
+        th topics
+        //- th transactionHash 
+          th transactionIndex
+       tr(v-for="log in txReceipt.logs")
+        td {{ log.logIndex }}
+        td {{ log.data }}
+        td {{ log.removed }}
+        td {{ log.topics.join('<br>') }}
+  
+  script.
+    var hash = '#{hash}';
+    var app = new Vue({
+      el: '#app',
+      data: {
+        isShow: false,
+        hash: '#{hash}',
+        confirmations: null,
+        tx: {},
+        txReceipt: {},
+        isContractCreation: false
+      },
+      created: function() {
+        getTransactionInfo.bind(this)(this.hash);
+      }
+    });
+
+    function getBlockNumber() {
+      return new Promise((res, rej) => {
+        web3.eth.getBlockNumber((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getTransaction(hash) {
+      return new Promise((res, rej) => {
+        web3.eth.getTransaction(hash, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    // 트랜잭션의 receipt 를 조회
+    function getTransactionReceipt(hash) {
+      return new Promise((res, rej) => {
+        web3.eth.getTransactionReceipt(hash, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getCode(contractAddress) {
+      return new Promise((res, rej) => {
+        web3.eth.getCode(contractAddress, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    async function getTransactionInfo(hash) {
+      try {
+        var self = this || app;
+        var hash = hash || self.hash;
+
+        var tx = await getTransaction(hash);
+
+        self.isContractCreation = (tx.input.indexOf('0x6060604052') === 0);
+
+        //-  console.log(tx);
+        tx.transactionPrice = web3.fromWei(tx.gas * tx.gasPrice, 'ether').toString(10) + ' ETH';
+
+        if(tx.value > 0) tx.value_eth = ' (' +  web3.fromWei(tx.value, 'ether').toString(10) + ' ETH)';
+        tx.value = tx.value.toString(10);
+
+        if(tx.gasPrice > 0) tx.gasPrice_gwei = ' (' +  web3.fromWei(tx.gasPrice, 'Gwei').toString(10) + ' Gwei)';
+        tx.gasPrice = tx.gasPrice.toString(10);
+        self.tx = tx;
+
+        self.txReceipt = await getTransactionReceipt(hash);
+
+        var blockNumber = self.tx.blockNumber;
+        var confirm;
+        if( blockNumber ) {
+          var latestBlockNumber = await getBlockNumber();
+          if( blockNumber !== 0 && blockNumber !== latestBlockNumber ) 
+            confirm = (latestBlockNumber - blockNumber) + " Confirmations";
+        }
+        this.confirmations = confirm || 'Unconfirmed';
+      } catch(err) {
+        console.log(err);
+        alert(err);
+      }
+    }

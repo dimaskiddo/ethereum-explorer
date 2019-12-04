@@ -1,0 +1,161 @@
+extends layout/default_layout
+
+block contents
+  h1=title
+    span.text-muted.ml-2 ##{number}
+
+  div#app(v-cloak)
+
+    //- ========================
+    //- Block
+    //- ========================
+    table.table.table-striped
+      tr
+        td.w-25 Height
+        td {{ block.number }}
+      tr
+        td TimeStamp
+        td {{ new Date(block.timestamp * 1000).toGMTString() }}
+      tr
+        td Transactions
+        td {{ block.transactions.length }} transactions
+      tr
+        td Hash
+        td {{ (block.hash || 'pending') }}
+      tr
+        td Parent Hash
+        td {{ block.parentHash }}
+      tr
+        td Sha3Uncles
+        td {{ block.sha3Uncles }}
+      tr
+        td Mined By
+        td
+          span(v-if="block.miner === undefined") pending
+          a(v-if="block.miner !== undefined", v-bind:href="'/address/' +  block.miner") {{  block.miner }}
+      tr
+        td Difficulty
+        td {{ block.difficulty }}
+      tr
+        td Total Difficulty
+        td {{ block.totalDifficulty }}
+      tr
+        td Size
+        td {{ block.size }} bytes
+      tr
+        td Gas Used
+        td {{ block.gasUsed }}
+      tr
+        td Gas Limit
+        td {{ block.gasLimit }}
+      tr
+        td Nonce
+        td {{ block.nonce }}
+      tr
+        td Extra Data
+        td {{ block.extraData }}
+      tr
+        td Extra Data (Translated)
+        td {{ web3.toAscii(block.extraData) }}
+      tr
+        td logsBloom
+        td
+          textarea(disabled, readonly, rows="3") {{ block.logsBloom }}
+      tr
+        td mixHash
+        td {{ block.mixHash }}
+      tr
+        td receiptsRoot
+        td {{ block.receiptsRoot }}
+      tr
+        td stateRoot
+        td {{ block.stateRoot }}
+      tr
+        td transactionsRoot
+        td {{ block.transactionsRoot }}
+      tr
+        td uncles
+        td {{ block.uncles }}
+
+    //- ========================
+    //- Transactions
+    //- ========================
+    h2 Transactions
+    table.table.table-striped.w-100
+      tr 
+        th Transaction Hash
+      tr(v-for="tx in block.transactions", v-if="block.transactions")
+        td
+          a(v-bind:href="'/tx/' +tx") {{ tx }}
+
+  script.
+    var app = new Vue({
+      el: '#app',
+      data: {
+        number:  #{number},
+        confirmations: null,
+        block: {
+          number:null,
+          timestamp:null,
+          transactions: [],
+          extraData: "",
+          size: 0
+        }
+      },
+      created: function() {
+        getBlockInfo(this.number);
+      }
+    });
+
+    function getBlockNumber() {
+      return new Promise((res, rej) => {
+        web3.eth.getBlockNumber((error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getBlock(hashStringOrBlockNumber) {
+      return new Promise((res, rej) => {
+        web3.eth.getBlock(hashStringOrBlockNumber, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    function getBlockTransactionCount(hashStringOrBlockNumber) {
+      return new Promise((res, rej) => {
+        web3.eth.getBlockTransactionCount(hashStringOrBlockNumber, (error, result) => {
+          if(error) rej(error);
+          else res(result);
+        });
+      });
+    }
+
+    async function getBlockInfo(number) {
+
+      var latestBlockNumber = await getBlockNumber();
+
+      var block = await getBlock(number); //or "latest"
+      block.difficulty = block.difficulty.toString(10);
+      block.totalDifficulty = block.totalDifficulty.toString(10);
+      app.block  = block; 
+
+      var blockNumber  = block.number;
+      var confirm;
+      if( blockNumber ) {
+        var latestBlockNumber = await getBlockNumber();
+        if( blockNumber !== 0 && blockNumber !== latestBlockNumber ) 
+          confirm = (latestBlockNumber - blockNumber) + " Confirmations";
+      }
+      app.confirmations = confirm || 'Unconfirmed';
+
+      //- var blockTransactionCount = await getBlockTransactionCount(result.number);
+      //- console.log('blockTransactionCount: ', blockTransactionCount);
+
+      //- web3.eth.getTransactionFromBlock(hashStringOrBlockNumber [, callback])
+      //- web3.eth.getUncle(blockHashStringOrNumber, uncleNumber [, returnTransactionObjects] [, callback])
+
+    }
